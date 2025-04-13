@@ -1,67 +1,160 @@
-
+import tkinter as tk
+from tkinter import ttk, messagebox
 import json
+from datetime import datetime
 
-def add_expense(expenses, description, amount):
-    expenses.append({"description": description, "amount": amount})
-    print(f"Added expense: {description}, Amount: {amount}")
+
+def add_expense(expenses, description, amount, category):
+    date = datetime.now().strftime("%Y-%m-%d")  # Automatically add the current date
+    expenses.append({"description": description, "amount": amount, "category": category, "date": date})
+    print(f"Added expense: {description}, Amount: {amount}, Category: {category}, Date: {date}")
+
+
+def update_expense(expenses, description, new_description, new_amount):
+    for expense in expenses:
+        if expense['description'] == description:
+            expense['description'] = new_description
+            expense['amount'] = new_amount
+            print(f"Updated expense: {description} -> {new_description}, Amount: {new_amount}")
+            return True
+    return False
+
+
+def remove_expense(expenses, description):
+    for expense in expenses:
+        if expense['description'] == description:
+            expenses.remove(expense)
+            print(f"Removed expense: {description}")
+            return True
+    return False
+
 
 def get_total_expenses(expenses):
     return sum(expense['amount'] for expense in expenses)
 
+
 def get_balance(budget, expenses):
     return budget - get_total_expenses(expenses)
 
-def show_budget_details(budget, expenses):
-    print(f"Total Budget: {budget}")
-    print("Expenses:")
-    for expense in expenses:
-        print(f"- {expense['description']}: {expense['amount']}")
-    print(f"Total Spent: {get_total_expenses(expenses)}")
-    print(f"Remaining Budget: {get_balance(budget, expenses)}")
 
 def load_budget_data(filepath):
     try:
         with open(filepath, 'r') as file:
             data = json.load(file)
-            return data['initial_budget'], data['expenses']
+            return data.get('initial_budget', 0), data.get('expenses', [])
     except (FileNotFoundError, json.JSONDecodeError):
         return 0, []  # Return default values if the file doesn't exist or is empty/corrupted
-#
+
+
 def save_budget_data(filepath, initial_budget, expenses):
-    data = {
-        'initial_budget': initial_budget,
-        'expenses': expenses
-    }
-    with open(filepath, 'w') as file:
-        json.dump(data, file, indent=4)
+    try:
+        data = {
+            'initial_budget': initial_budget,
+            'expenses': expenses
+        }
+        with open(filepath, 'w') as file:
+            json.dump(data, file, indent=4)
+        print("Budget data saved successfully.")
+    except Exception as e:
+        print(f"An error occurred while saving data: {e}")
+
+
+def update_expenses_gui(expense_listbox, expenses, budget):
+    """Update the Listbox with the latest expenses."""
+    expense_listbox.delete(0, tk.END)  # Clear the Listbox
+    total_spent = get_total_expenses(expenses)
+    for expense in expenses:
+        percentage = (expense['amount'] / total_spent) * 100 if total_spent > 0 else 0
+        expense_listbox.insert(
+            tk.END,
+            f"{expense['date']} - {expense['description']} ({expense['category']}): ${expense['amount']:.2f} ({percentage:.2f}%)"
+        )
+    expense_listbox.insert(tk.END, f"Total Spent: ${total_spent:.2f}")
+    expense_listbox.insert(tk.END, f"Remaining Budget: ${get_balance(budget, expenses):.2f}")
 
 
 def main():
-    print("Welcome to the Budget App")
-    initial_budget = float(input("Please enter your initial budget: "))
-    # filepath = 'budget_data.json'  # Define the path to your JSON file
-    # initial_budget, expenses = load_budget_data(filepath)
-    budget = initial_budget
-    expenses = []
+    # Load data
+    filepath = 'budget_data.json'
+    initial_budget, expenses = load_budget_data(filepath)
 
-    while True:
-        print("\nWhat would you like to do?")
-        print("1. Add an expense")
-        print("2. Show budget details")
-        print("3. Exit")
-        choice = input("Enter your choice (1/2/3): ")
+    if initial_budget == 0:  # If no budget is found, prompt the user to set one
+        initial_budget = float(input("Please enter your initial budget: "))
+    budget = initial_budget  # Set the budget to the loaded or newly entered value
 
-        if choice == "1":
-            description = input("Enter expense description: ")
-            amount = float(input("Enter expense amount: "))
-            add_expense(expenses, description, amount)
-        elif choice == "2":
-            show_budget_details(budget, expenses)
-        elif choice == "3":
-            print("Exiting Budget App. Goodbye!")
-            break
+    # Create the main Tkinter window
+    root = tk.Tk()
+    root.title("Budget Tracker")
+
+    # Create a frame for the expenses
+    frame = ttk.Frame(root, padding="10")
+    frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+    # Add a label
+    ttk.Label(frame, text="Current Expenses", font=("Arial", 14)).grid(row=0, column=0, sticky=tk.W)
+
+    # Create a Listbox to display expenses
+    expense_listbox = tk.Listbox(frame, width=80, height=20)
+    expense_listbox.grid(row=1, column=0, columnspan=4, sticky=(tk.W, tk.E))
+
+    # Populate the Listbox with expenses
+    update_expenses_gui(expense_listbox, expenses, budget)
+
+    # Add input fields and buttons for actions
+    ttk.Label(frame, text="Description:").grid(row=2, column=0, sticky=tk.W)
+    description_entry = ttk.Entry(frame, width=20)
+    description_entry.grid(row=2, column=1, sticky=tk.W)
+
+    ttk.Label(frame, text="Amount:").grid(row=3, column=0, sticky=tk.W)
+    amount_entry = ttk.Entry(frame, width=20)
+    amount_entry.grid(row=3, column=1, sticky=tk.W)
+
+    ttk.Label(frame, text="Category:").grid(row=4, column=0, sticky=tk.W)
+    category_entry = ttk.Entry(frame, width=20)
+    category_entry.grid(row=4, column=1, sticky=tk.W)
+
+    def add_expense_gui():
+        description = description_entry.get()
+        amount = float(amount_entry.get())
+        category = category_entry.get()
+        add_expense(expenses, description, amount, category)
+        update_expenses_gui(expense_listbox, expenses, budget)
+        description_entry.delete(0, tk.END)
+        amount_entry.delete(0, tk.END)
+        category_entry.delete(0, tk.END)
+
+    def update_expense_gui():
+        description = description_entry.get()
+        new_description = description_entry.get()
+        new_amount = float(amount_entry.get())
+        if update_expense(expenses, description, new_description, new_amount):
+            update_expenses_gui(expense_listbox, expenses, budget)
         else:
-            print("Invalid choice, please choose again.")
+            messagebox.showerror("Error", "Expense not found!")
+        description_entry.delete(0, tk.END)
+        amount_entry.delete(0, tk.END)
+        category_entry.delete(0, tk.END)
+
+    def remove_expense_gui():
+        description = description_entry.get()
+        if remove_expense(expenses, description):
+            update_expenses_gui(expense_listbox, expenses, budget)
+        else:
+            messagebox.showerror("Error", "Expense not found!")
+        description_entry.delete(0, tk.END)
+
+    def save_and_exit():
+        save_budget_data(filepath, initial_budget, expenses)
+        root.destroy()
+
+    ttk.Button(frame, text="Add Expense", command=add_expense_gui).grid(row=5, column=0, sticky=tk.W)
+    ttk.Button(frame, text="Update Expense", command=update_expense_gui).grid(row=5, column=1, sticky=tk.W)
+    ttk.Button(frame, text="Remove Expense", command=remove_expense_gui).grid(row=5, column=2, sticky=tk.W)
+    ttk.Button(frame, text="Save and Exit", command=save_and_exit).grid(row=5, column=3, sticky=tk.W)
+
+    # Run the Tkinter main loop
+    root.mainloop()
+
 
 if __name__ == "__main__":
     main()
