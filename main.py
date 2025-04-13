@@ -73,6 +73,8 @@ def update_expenses_gui(expense_listbox, expenses, budget):
     expense_listbox.insert(tk.END, f"Remaining Budget: ${get_balance(budget, expenses):.2f}")
 
 
+
+
 def main():
     # Load data
     filepath = 'budget_data.json'
@@ -113,6 +115,25 @@ def main():
     category_entry = ttk.Entry(frame, width=20)
     category_entry.grid(row=4, column=1, sticky=tk.W)
 
+    # Add a section for updating the budget
+    ttk.Label(frame, text="Update Budget:").grid(row=6, column=0, sticky=tk.W)
+    budget_entry = ttk.Entry(frame, width=20)
+    budget_entry.grid(row=6, column=1, sticky=tk.W)
+
+    def update_budget_gui():
+        nonlocal budget, initial_budget  # Ensure both variables are updated
+        try:
+            new_budget = float(budget_entry.get())
+            budget = new_budget
+            initial_budget = new_budget  # Update the initial_budget variable
+            update_expenses_gui(expense_listbox, expenses, budget)
+            budget_entry.delete(0, tk.END)
+            messagebox.showinfo("Success", "Budget updated successfully!")
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid number for the budget.")
+
+
+
     def add_expense_gui():
         description = description_entry.get()
         amount = float(amount_entry.get())
@@ -150,7 +171,8 @@ def main():
     ttk.Button(frame, text="Add Expense", command=add_expense_gui).grid(row=5, column=0, sticky=tk.W)
     ttk.Button(frame, text="Update Expense", command=update_expense_gui).grid(row=5, column=1, sticky=tk.W)
     ttk.Button(frame, text="Remove Expense", command=remove_expense_gui).grid(row=5, column=2, sticky=tk.W)
-    ttk.Button(frame, text="Save and Exit", command=save_and_exit).grid(row=5, column=3, sticky=tk.W)
+    ttk.Button(frame, text="Update Budget", command=update_budget_gui).grid(row=6, column=2, sticky=tk.W)
+    ttk.Button(frame, text="Save and Exit", command=save_and_exit).grid(row=7, column=3, sticky=tk.W)
 
     # Run the Tkinter main loop
     root.mainloop()
